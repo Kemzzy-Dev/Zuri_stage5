@@ -1,0 +1,5 @@
+__pycache__/
+test.mkv
+test.mp3
+env/
+database.db
