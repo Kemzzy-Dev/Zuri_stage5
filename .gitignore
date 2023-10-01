@@ -3,3 +3,6 @@ test.mkv
 test.mp3
 env/
 database.db
+.env
+audio/
+videos/

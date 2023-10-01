@@ -1,53 +1,47 @@
 import os
 from flask import Flask, request, jsonify
-import cloudinary.uploader
 import sqlite3
 from convert import extract_audio, getTranscribedAudio
+from db_controller import create_table, insert_data, get_data
 
 
 
 app = Flask(__name__)
 
-# Initialize SQLite database
-conn = sqlite3.connect('database.db')
-c = conn.cursor()
-c.execute('''CREATE TABLE IF NOT EXISTS videos (id INTEGER PRIMARY KEY AUTOINCREMENT, video_url TEXT, transcript TEXT)''')
-conn.commit()
-
-# Cloudinary configuration
-cloudinary.config(
-    cloud_name='dqxp8sid3',
-    api_key='583537237715728',
-    api_secret='DPUMbU3-3MGZ0fGK9lgtoxJXJfI'
-)
 
 @app.route('/upload', methods=['POST'])
 def upload_video():
+
+    create_table()
     # Assuming the frontend sends the video as a file
-    video = request.files['video']
+    video = request.files['file']
+    video_path = f"videos/{video.filename}"
+    # audio = 'audio/test.wav'
 
-    video.save()
+    video.save(video_path)
 
-    # audio = extract_audio(video)
-    # transcript = getTranscribedAudio(audio)
+    audio = extract_audio(video_path)
+    transcript = getTranscribedAudio(audio)
     
-    # # Upload video to Cloudinary
-    # result = cloudinary.uploader.upload(video)
+    
+    #  Save URL to SQLite database
+    insert_data(video_path, transcript)
 
-    # # Save Cloudinary URL to SQLite database
-    # url = result['url']
-    # c.execute('INSERT INTO videos (video_url) VALUES (?)', (url,))
-    # c.execute('INSERT INTO videos (transcript) VALUES (?)', (transcript,))
-    # conn.commit()
-
-    return jsonify({'message': "done"})
+    return jsonify({
+        'message': 'Video saved successfully',
+        'status': '200',
+        'transcript': transcript,
+        'video': video_path
+        })
 
 @app.route('/get_video/<int:video_id>', methods=['GET'])
 def get_video(video_id):
-    c.execute('SELECT url FROM videos WHERE id = ?', (video_id,))
-    url = c.fetchone()
-    if url:
-        return jsonify({'video_url': url[0]})
+    data = get_data(video_id)
+    
+    if data:
+        return jsonify({'id': video_id,
+                        'video_url': data[0],
+                        'transcript': data[1]})
     else:
         return jsonify({'error': 'Video not found'}), 404
 

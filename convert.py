@@ -1,33 +1,46 @@
-import moviepy.editor as mp
 import requests
+from deepgram import Deepgram
+import json
+import subprocess
+from dotenv import load_dotenv
+import os
 
 
 def extract_audio(video_path):
     try:
-        video_clip = mp.VideoFileClip(video_path)
-        audio_clip = video_clip.audio
-        
-        file_parts = video_path.split(".")
+        file_parts = video_path.split("/")
+        file_parts2 = file_parts[1].split(".")
         # Extract the word 
-        audio_name = file_parts[0]
+        audio_name = file_parts2[0]
 
-        audio_clip.write_audiofile(f'{audio_name}.mp3', codec='mp3')
-        print('Audio extracted and saved successfully as MP3.')
+        audio_path = f'audio/{audio_name}.wav'
+
+        subprocess.run(['ffmpeg', '-i', video_path, '-q:a', '0', '-map', 'a', audio_path])    
+        print('Audio extracted and saved successfully as wav.')
     except Exception as e:
         print('Error:', str(e))
 
-    return f"{audio_name}.mp3"
+    return audio_path
 
-def getTranscribedAudio(audio):
+def getTranscribedAudio(audio_file):
 
-    url = "https://whisper-speech-to-text1.p.rapidapi.com/speech-to-text"
+    api_key = os.getenv('DEEPGRAM_API_KEY')
+    PATH_TO_FILE = audio_file
 
-    files = { "file": f"open({audio}, 'rb')" }
-    headers = {
-        "X-RapidAPI-Key": "7ef5e278bdmsh8f17098632358abp17f011jsn295d1fc4c6f6",
-        "X-RapidAPI-Host": "whisper-speech-to-text1.p.rapidapi.com"
-    }
+        # Initializes the Deepgram SDK
+    deepgram = Deepgram(api_key)
+    try:
+        # Open the audio file
+        with open(PATH_TO_FILE, 'rb') as audio:
+            # ...or replace mimetype as appropriate
+            source = {'buffer': audio, 'mimetype': 'audio/wav'}
+            response = deepgram.transcription.sync_prerecorded(source, {'punctuate': True})
+            # Access the transcript
+            transcript = response['results']['channels'][0]['alternatives'][0]['transcript']
+        
+        return transcript
 
-    response = requests.post(url, files=files, headers=headers)
+    except Exception as e:
+        print('Error: ', str(e))
 
-    return response.text
+    
